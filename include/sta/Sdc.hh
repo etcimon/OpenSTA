@@ -134,9 +134,11 @@ private:
 using ClockNameMap = std::map<std::string ,Clock*, std::less<>>;
 using ClockPinMap = std::unordered_map<const Pin*, ClockSet*, PinIdHash>;
 using InputDelaySet = std::set<InputDelay*>;
-using InputDelaysPinMap = std::map<const Pin*, InputDelaySet*, PinIdLess>;
+// Lookup by pin pointer. PinIdLess ordered these by database id and called
+// Network::id on every tree comparison.
+using InputDelaysPinMap = std::unordered_map<const Pin*, InputDelaySet*>;
 using OutputDelaySet = std::set<OutputDelay*>;
-using OutputDelaysPinMap = std::map<const Pin*, OutputDelaySet*, PinIdLess>;
+using OutputDelaysPinMap = std::unordered_map<const Pin*, OutputDelaySet*>;
 using PinExceptionsMap = std::unordered_map<const Pin*, ExceptionPathSet>;
 using ClockExceptionsMap = std::unordered_map<const Clock*, ExceptionPathSet>;
 using InstanceExceptionsMap = std::unordered_map<const Instance*,ExceptionPathSet>;

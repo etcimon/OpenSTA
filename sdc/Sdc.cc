@@ -117,12 +117,12 @@ Sdc::Sdc(Mode *mode,
   clk_sense_map_(network_),
   cycle_acctings_(this),
 
-  input_delay_pin_map_(PinIdLess(network_)),
-  input_delay_leaf_pin_map_(PinIdLess(network_)),
-  input_delay_internal_pin_map_(PinIdLess(network_)),
+  input_delay_pin_map_(),
+  input_delay_leaf_pin_map_(),
+  input_delay_internal_pin_map_(),
 
-  output_delay_pin_map_(PinIdLess(network_)),
-  output_delay_leaf_pin_map_(PinIdLess(network_)),
+  output_delay_pin_map_(),
+  output_delay_leaf_pin_map_(),
 
   port_ext_cap_map_(network_),
   net_wire_cap_map_(network_),

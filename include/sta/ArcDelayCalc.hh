@@ -24,8 +24,8 @@
 
 #pragma once
 
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <string_view>
 #include <vector>
 
@@ -50,7 +50,10 @@ using ArcDcalcArgPtrSeq = std::vector<ArcDcalcArg*>;
 using ArcDcalcArgSeq = std::vector<ArcDcalcArg>;
 
 // Driver load pin -> index in driver loads.
-using LoadPinIndexMap = std::map<const Pin *, size_t, PinIdLess>;
+// The index is assigned from wire-edge order, then stored. Lookup does not
+// need PinIdLess. An ordered map called network->id on every comparison,
+// which was the largest function in a TinyRocket repair profile.
+using LoadPinIndexMap = std::unordered_map<const Pin*, size_t>;
 
 // Arguments for gate delay calculation delay/slew at one driver pin
 // through one timing arc at one delay calc analysis point.

@@ -1302,7 +1302,7 @@ GraphDelayCalc::annotateLoadDelays(Vertex *drvr_vertex,
 LoadPinIndexMap
 GraphDelayCalc::makeLoadPinIndexMap(Vertex *drvr_vertex)
 {
-  LoadPinIndexMap load_pin_index_map(network_);
+  LoadPinIndexMap load_pin_index_map;
   size_t load_idx = 0;
   VertexOutEdgeIterator edge_iter(drvr_vertex, graph_);
   while (edge_iter.hasNext()) {

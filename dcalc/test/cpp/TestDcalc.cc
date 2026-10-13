@@ -524,7 +524,7 @@ TEST_F(StaDcalcTest, UnitDelayCalcSetDcalcArgParasiticSlewSeq) {
 TEST_F(StaDcalcTest, UnitDelayCalcInputPortDelay) {
   ArcDelayCalc *calc = makeDelayCalc("unit", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                 nullptr, load_pin_index_map,
                                                 nullptr, nullptr);
@@ -537,7 +537,7 @@ TEST_F(StaDcalcTest, UnitDelayCalcInputPortDelay) {
 TEST_F(StaDcalcTest, UnitDelayCalcGateDelay) {
   ArcDelayCalc *calc = makeDelayCalc("unit", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResult result = calc->gateDelay(nullptr, nullptr, 0.0, 0.0,
                                            nullptr, load_pin_index_map,
                                            nullptr, nullptr);
@@ -552,7 +552,7 @@ TEST_F(StaDcalcTest, UnitDelayCalcGateDelays) {
   ArcDcalcArgSeq args;
   args.push_back(ArcDcalcArg());
   args.push_back(ArcDcalcArg());
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResultSeq results = calc->gateDelays(args, load_pin_index_map,
                                                 nullptr, nullptr);
   EXPECT_EQ(results.size(), 2u);
@@ -572,7 +572,7 @@ TEST_F(StaDcalcTest, UnitDelayCalcCheckDelay) {
 TEST_F(StaDcalcTest, UnitDelayCalcReportGateDelay) {
   ArcDelayCalc *calc = makeDelayCalc("unit", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   std::string report = calc->reportGateDelay(nullptr, nullptr, 0.0, 0.0,
                                               nullptr, load_pin_index_map,
                                               nullptr, nullptr, 3);
@@ -808,7 +808,7 @@ TEST_F(StaDcalcTest, AllCalcsCopyDestroy) {
 TEST_F(StaDcalcTest, UnitDelayCalcGateDelayWithLoads) {
   ArcDelayCalc *calc = makeDelayCalc("unit", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResult result = calc->gateDelay(nullptr, nullptr, 0.0, 0.0,
                                            nullptr, load_pin_index_map,
                                            nullptr, nullptr);
@@ -832,7 +832,7 @@ TEST_F(StaDcalcTest, UnitDelayCalcGateDelaysWithLoads) {
   ASSERT_NE(calc, nullptr);
   ArcDcalcArgSeq args;
   args.push_back(ArcDcalcArg());
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResultSeq results = calc->gateDelays(args, load_pin_index_map,
                                                 nullptr, nullptr);
   EXPECT_EQ(results.size(), 1u);
@@ -844,7 +844,7 @@ TEST_F(StaDcalcTest, UnitDelayCalcGateDelaysWithLoads) {
 TEST_F(StaDcalcTest, UnitDelayCalcInputPortDelayWithLoads) {
   ArcDelayCalc *calc = makeDelayCalc("unit", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 1e-10, nullptr,
                                                 nullptr, load_pin_index_map,
                                                 nullptr, nullptr);
@@ -990,7 +990,7 @@ TEST_F(StaDcalcTest, PrimaWatchPins) {
 TEST_F(StaDcalcTest, LumpedCapInputPortDelay) {
   ArcDelayCalc *calc = makeDelayCalc("lumped_cap", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                 nullptr, load_pin_index_map,
                                                 nullptr, nullptr);
@@ -1066,7 +1066,7 @@ TEST_F(StaDcalcTest, ArnoldiSetDcalcArgSingle) {
 TEST_F(StaDcalcTest, DmpCeffElmoreInputPortDelay) {
   ArcDelayCalc *calc = makeDelayCalc("dmp_ceff_elmore", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   Scene *scene = sta_->cmdScene();
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                 nullptr, load_pin_index_map,
@@ -1079,7 +1079,7 @@ TEST_F(StaDcalcTest, DmpCeffElmoreInputPortDelay) {
 TEST_F(StaDcalcTest, PrimaInputPortDelay) {
   ArcDelayCalc *calc = makeDelayCalc("prima", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   Scene *scene = sta_->cmdScene();
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                 nullptr, load_pin_index_map,
@@ -1157,7 +1157,7 @@ TEST_F(StaDcalcTest, MultiDrvrNetSetDcalcDrvr) {
 TEST_F(StaDcalcTest, DmpCeffTwoPoleInputPortDelay) {
   ArcDelayCalc *calc = makeDelayCalc("dmp_ceff_two_pole", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   Scene *scene = sta_->cmdScene();
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                 nullptr, load_pin_index_map,
@@ -1170,7 +1170,7 @@ TEST_F(StaDcalcTest, DmpCeffTwoPoleInputPortDelay) {
 TEST_F(StaDcalcTest, ArnoldiInputPortDelay) {
   ArcDelayCalc *calc = makeDelayCalc("arnoldi", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                 nullptr, load_pin_index_map,
                                                 nullptr, nullptr);
@@ -1182,7 +1182,7 @@ TEST_F(StaDcalcTest, ArnoldiInputPortDelay) {
 TEST_F(StaDcalcTest, CcsCeffInputPortDelay) {
   ArcDelayCalc *calc = makeDelayCalc("ccs_ceff", sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                 nullptr, load_pin_index_map,
                                                 nullptr, nullptr);
@@ -2059,7 +2059,7 @@ TEST_F(StaDcalcTest, AllCalcsInputPortDelayNull) {
   for (const std::string &name : names) {
     ArcDelayCalc *calc = makeDelayCalc(name, sta_);
     ASSERT_NE(calc, nullptr) << "Failed for: " << name;
-    LoadPinIndexMap load_pin_index_map(sta_->network());
+    LoadPinIndexMap load_pin_index_map;
     ArcDcalcResult result = calc->inputPortDelay(nullptr, 0.0, nullptr,
                                                   nullptr, load_pin_index_map,
                                                   scene, MinMax::max());
@@ -3403,7 +3403,7 @@ TEST_F(StaDcalcTest, AllCalcsInputPortDelaySlew) {
   for (const std::string &name : names) {
     ArcDelayCalc *calc = makeDelayCalc(name, sta_);
     ASSERT_NE(calc, nullptr);
-    LoadPinIndexMap load_pin_index_map(sta_->network());
+    LoadPinIndexMap load_pin_index_map;
     ArcDcalcResult result = calc->inputPortDelay(nullptr, 100e-12, nullptr,
                                                   nullptr, load_pin_index_map,
                                                   scene, MinMax::max());
@@ -3483,7 +3483,7 @@ TEST_F(StaDcalcTest, DmpCeffTwoPoleCopyState2) {
 TEST_F(StaDcalcTest, DmpCeffElmoreInputPortDelay2) {
   ArcDelayCalc *calc = makeDmpCeffElmoreDelayCalc(sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   Scene *scene = sta_->cmdScene();
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 50e-12, nullptr,
                                                 nullptr, load_pin_index_map,
@@ -3497,7 +3497,7 @@ TEST_F(StaDcalcTest, DmpCeffElmoreInputPortDelay2) {
 TEST_F(StaDcalcTest, DmpCeffTwoPoleInputPortDelay2) {
   ArcDelayCalc *calc = makeDmpCeffTwoPoleDelayCalc(sta_);
   ASSERT_NE(calc, nullptr);
-  LoadPinIndexMap load_pin_index_map(sta_->network());
+  LoadPinIndexMap load_pin_index_map;
   Scene *scene = sta_->cmdScene();
   ArcDcalcResult result = calc->inputPortDelay(nullptr, 50e-12, nullptr,
                                                 nullptr, load_pin_index_map,

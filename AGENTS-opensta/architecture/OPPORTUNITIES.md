@@ -3,6 +3,20 @@
 OpenSTA was not edited on `g6lc`. The speed work is in OpenROAD and calls
 into this library. These are the levers that stay accurate.
 
+## Pin maps
+
+`PinIdLess` calls `Network::id` twice per `std::map` comparison. On the
+TinyRocket repair profile that was the body of `dbNetwork::id` (744 million
+instructions). `InputDelaysPinMap`, `OutputDelaysPinMap`, and
+`LoadPinIndexMap` are lookups. The index in `LoadPinIndexMap` is assigned
+from wire-edge order and then stored, so a later walk uses that index, not
+map order. Those three are `std::unordered_map` keyed by pin pointer.
+`PinIdHash` hashes the pointer instead of calling `id`. `PinSet` stays an
+ordered set so iteration order stays by database id.
+
+The same benchmark then measured 15.37 billion instructions, slack −1.30 ns
+then −1.25 ns, TNS −1961.15 then −1960.65.
+
 ## Already used from outside
 
 - One `findRequireds()` per ranking pass, then read path slack. Do not call

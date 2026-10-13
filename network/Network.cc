@@ -26,6 +26,7 @@
 #include "Network.hh"
 
 #include <compare>
+#include <cstdint>
 #include <set>
 
 #include "ContainerHelpers.hh"
@@ -1975,7 +1976,10 @@ PinIdHash::PinIdHash(const Network *network) :
 size_t
 PinIdHash::operator()(const Pin *pin) const
 {
-  return network_->id(pin);
+  // Pointer identity. network_->id() walks the database and was called from
+  // every unordered_map probe. Equal pins are the same pointer.
+  (void) network_;
+  return static_cast<size_t>(reinterpret_cast<uintptr_t>(pin));
 }
 
 NetIdLess::NetIdLess(const Network *network) :
