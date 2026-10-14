@@ -3578,6 +3578,12 @@ Sdc::isDisabled(const Edge *edge) const
 bool
 Sdc::isDisabledConstraint(const Edge *edge) const
 {
+  // The pin, instance, and liberty lookups below only query these sets.
+  if (disabled_inst_ports_.empty()
+      && disabled_cell_ports_.empty()
+      && disabled_edges_.empty()
+      && disabled_wire_edges_.empty())
+    return false;
   Pin *from_pin = edge->from(graph_)->pin();
   Pin *to_pin = edge->to(graph_)->pin();
   const Instance *inst = network_->instance(from_pin);
@@ -3669,11 +3675,19 @@ Sdc::removeDisable(Pin *pin)
 bool
 Sdc::isDisabledConstraint(const Pin *pin) const
 {
-  Port *port = network_->port(pin);
-  LibertyPort *lib_port = network_->libertyPort(pin);
-  return disabled_pins_.contains(pin)
-    || disabled_ports_.contains(port)
-    || disabled_lib_ports_.contains(lib_port);
+  if (disabled_pins_.contains(pin))
+    return true;
+  if (!disabled_ports_.empty()) {
+    Port *port = network_->port(pin);
+    if (disabled_ports_.contains(port))
+      return true;
+  }
+  if (!disabled_lib_ports_.empty()) {
+    LibertyPort *lib_port = network_->libertyPort(pin);
+    if (disabled_lib_ports_.contains(lib_port))
+      return true;
+  }
+  return false;
 }
 
 bool
@@ -3686,22 +3700,24 @@ Sdc::isDisabled(const Instance *inst,
     // Hierarchical thru pin disables.
     return disabled_wire_edges_.contains({from_pin, to_pin});
   }
-  else {
-    LibertyCell *cell = network_->libertyCell(inst);
-    LibertyPort *from_port = network_->libertyPort(from_pin);
-    LibertyPort *to_port = network_->libertyPort(to_pin);
-    DisabledInstancePorts *disabled_inst = findKey(disabled_inst_ports_, inst);
-    DisabledCellPorts *disabled_cell = findKey(disabled_cell_ports_, cell);
-    return (disabled_inst
-            && disabled_inst->isDisabled(from_port, to_port, role))
-      || (disabled_cell
-          && disabled_cell->isDisabled(from_port, to_port, role));
-  }
+  if (disabled_inst_ports_.empty() && disabled_cell_ports_.empty())
+    return false;
+  LibertyCell *cell = network_->libertyCell(inst);
+  LibertyPort *from_port = network_->libertyPort(from_pin);
+  LibertyPort *to_port = network_->libertyPort(to_pin);
+  DisabledInstancePorts *disabled_inst = findKey(disabled_inst_ports_, inst);
+  DisabledCellPorts *disabled_cell = findKey(disabled_cell_ports_, cell);
+  return (disabled_inst
+          && disabled_inst->isDisabled(from_port, to_port, role))
+    || (disabled_cell
+        && disabled_cell->isDisabled(from_port, to_port, role));
 }
 
 bool
 Sdc::isDisabled(TimingArcSet *arc_set) const
 {
+  if (disabled_cell_ports_.empty())
+    return false;
   LibertyCell *cell = arc_set->libertyCell();
   if (cell) {
     DisabledCellPorts *disabled_cell = findKey(disabled_cell_ports_, cell);
