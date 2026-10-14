@@ -109,6 +109,52 @@ GateTableModel::setIsScaled(bool is_scaled)
     slew_models_->model()->setIsScaled(is_scaled);
 }
 
+// Same products as Table::evalOrder2. One weight set is shared by two
+// tables that already share both axes; each table still loads its own corners.
+struct Order2Weights {
+  double w00;
+  double w10;
+  double w11;
+  double w01;
+};
+
+static inline Order2Weights
+order2Weights(const TableAxis *axis1,
+              const TableAxis *axis2,
+              size_t axis_index1,
+              size_t axis_index2,
+              float axis_value1,
+              float axis_value2)
+{
+  double x1 = axis_value1;
+  double x2 = axis_value2;
+  double x1l = axis1->axisValue(axis_index1);
+  double x1u = axis1->axisValue(axis_index1 + 1);
+  double dx1 = (x1 - x1l) / (x1u - x1l);
+  double x2l = axis2->axisValue(axis_index2);
+  double x2u = axis2->axisValue(axis_index2 + 1);
+  double dx2 = (x2 - x2l) / (x2u - x2l);
+  double one_dx1 = 1.0 - dx1;
+  double one_dx2 = 1.0 - dx2;
+  return {one_dx1 * one_dx2, dx1 * one_dx2, dx1 * dx2, one_dx1 * dx2};
+}
+
+static inline float
+applyOrder2(const Table *table,
+            size_t axis_index1,
+            size_t axis_index2,
+            const Order2Weights &w)
+{
+  double y00 = table->value(axis_index1, axis_index2);
+  double y10 = table->value(axis_index1 + 1, axis_index2);
+  double y11 = table->value(axis_index1 + 1, axis_index2 + 1);
+  double y01 = table->value(axis_index1, axis_index2 + 1);
+  return w.w00 * y00
+    + w.w10 * y10
+    + w.w11 * y11
+    + w.w01 * y01;
+}
+
 void
 GateTableModel::gateDelay(const Pvt *pvt,
                           float in_slew,
@@ -121,8 +167,8 @@ GateTableModel::gateDelay(const Pvt *pvt,
   TableModel *slew_model = slew_models_ ? slew_models_->model() : nullptr;
   const TableAxis *axis1 = delay_model ? delay_model->axis1() : nullptr;
   const TableAxis *axis2 = delay_model ? delay_model->axis2() : nullptr;
-  // Delay and slew tables that share both axes use one bracket. The
-  // interpolation and the scale factor stay on each table.
+  // Delay and slew tables that share both axes use one bracket and one
+  // set of bilinear weights. Each table still scales its own corners.
   if (delay_model && slew_model
       && delay_model->order() == 2
       && slew_model->order() == 2
@@ -135,10 +181,14 @@ GateTableModel::gateDelay(const Pvt *pvt,
     findAxisValues(delay_model, in_slew, load_cap, 0.0, value1, value2, value3);
     size_t index1 = axis1->findAxisIndex(value1);
     size_t index2 = axis2->findAxisIndex(value2);
-    gate_delay = delay_model->findValueOrder2(index1, index2, value1, value2,
-                                              cell_, pvt);
-    drvr_slew = slew_model->findValueOrder2(index1, index2, value1, value2,
-                                            cell_, pvt);
+    // dx1 and dx2 depend only on the shared axes. Each table keeps its
+    // own corners and its own scale factor.
+    const Order2Weights w = order2Weights(axis1, axis2, index1, index2,
+                                          value1, value2);
+    gate_delay = applyOrder2(delay_model->table().get(), index1, index2, w)
+        * delay_model->scaleFactor(cell_, pvt);
+    drvr_slew = applyOrder2(slew_model->table().get(), index1, index2, w)
+        * slew_model->scaleFactor(cell_, pvt);
     drvr_slew = std::max(drvr_slew, 0.0F);
     return;
   }
@@ -1150,22 +1200,10 @@ Table::evalOrder2(size_t axis_index1,
                   float axis_value1,
                   float axis_value2) const
 {
-  double x1 = axis_value1;
-  double x2 = axis_value2;
-  double y00 = value(axis_index1, axis_index2);
-  double x1l = axis1_->axisValue(axis_index1);
-  double x1u = axis1_->axisValue(axis_index1 + 1);
-  double dx1 = (x1 - x1l) / (x1u - x1l);
-  double y10 = value(axis_index1 + 1, axis_index2);
-  double y11 = value(axis_index1 + 1, axis_index2 + 1);
-  double x2l = axis2_->axisValue(axis_index2);
-  double x2u = axis2_->axisValue(axis_index2 + 1);
-  double dx2 = (x2 - x2l) / (x2u - x2l);
-  double y01 = value(axis_index1, axis_index2 + 1);
-  return (1 - dx1) * (1 - dx2) * y00
-    + dx1 * (1 - dx2) * y10
-    + dx1 * dx2 * y11
-    + (1 - dx1) * dx2 * y01;
+  const Order2Weights w = order2Weights(axis1_.get(), axis2_.get(),
+                                       axis_index1, axis_index2,
+                                       axis_value1, axis_value2);
+  return applyOrder2(this, axis_index1, axis_index2, w);
 }
 
 float

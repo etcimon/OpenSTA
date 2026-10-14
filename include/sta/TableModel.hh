@@ -354,6 +354,8 @@ private:
 // Wrapper class for Table to apply scale factors.
 class TableModel
 {
+  friend class GateTableModel;
+
 public:
   TableModel();
   TableModel(TablePtr table,
