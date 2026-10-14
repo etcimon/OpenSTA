@@ -446,19 +446,21 @@ Graph::pinVertices(const Pin *pin,
                    Vertex *&bidirect_drvr_vertex)  const
 {
   vertex = Graph::vertex(network_->vertexId(pin));
-  if (network_->direction(pin)->isBidirect())
-    bidirect_drvr_vertex = findKey(pin_bidirect_drvr_vertex_map_, pin);
-  else
-    bidirect_drvr_vertex = nullptr;
+  // The map holds every bidirect driver. Other pins are absent.
+  bidirect_drvr_vertex = findKey(pin_bidirect_drvr_vertex_map_, pin);
 }
 
 Vertex *
 Graph::pinDrvrVertex(const Pin *pin) const
 {
-  if (network_->direction(pin)->isBidirect())
-    return findKey(pin_bidirect_drvr_vertex_map_, pin);
-  else
-    return Graph::vertex(network_->vertexId(pin));
+  // Bidirect drivers are recorded when the vertex is made. Every other
+  // pin has one vertex, stored on the pin.
+  if (Vertex *bidir = findKey(pin_bidirect_drvr_vertex_map_, pin))
+    return bidir;
+  VertexId vertex_id = network_->vertexId(pin);
+  if (vertex_id == vertex_id_null)
+    return nullptr;
+  return Graph::vertex(vertex_id);
 }
 
 Vertex *
@@ -1517,9 +1519,8 @@ VertexIterator::findNextPin()
   while (pin_iter_->hasNext()) {
     Pin *pin = pin_iter_->next();
     vertex_ = graph_->vertex(network_->vertexId(pin));
-    bidir_vertex_ = network_->direction(pin)->isBidirect() 
-      ? findKey(graph_->pin_bidirect_drvr_vertex_map_, pin)
-      : nullptr;
+    // Bidirect drivers are already in the map, including when it is empty.
+    bidir_vertex_ = findKey(graph_->pin_bidirect_drvr_vertex_map_, pin);
     if (vertex_ || bidir_vertex_)
       return true;
   }

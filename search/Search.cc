@@ -1256,8 +1256,9 @@ ArrivalVisitor::seedArrivals(Vertex *vertex)
       search_->seedClkArrivals(pin, mode, tag_bldr_);
     if (search_->isInputArrivalSrchStart(vertex))
       search_->seedInputArrival(pin, vertex, mode, tag_bldr_);
-    // Do not apply input delay to bidir load vertices.
-    if (!(network_->direction(pin)->isBidirect() && !vertex->isBidirectDriver())
+    // Do not apply input delay to bidir load vertices. The recorded
+    // driver vertex is this vertex for every other pin.
+    if (graph_->pinDrvrVertex(pin) == vertex
         && !network_->isTopLevelPort(pin)
         // OpenROAD fork: analysis_corner support.
         && (sdc->hasInputDelay(pin) || modeHasCornerInputDelay(mode, pin)))
