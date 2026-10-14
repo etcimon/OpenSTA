@@ -24,13 +24,27 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+
 namespace sta {
 
 // "Fuzzy" floating point comparisons that allow some tolerance.
 
-bool
+inline bool
 fuzzyEqual(float v1,
-           float v2);
+           float v2)
+{
+  constexpr float float_equal_tolerance = 1E-15F;
+  if (v1 == v2)
+    return true;
+  else if (v1 == 0.0)
+    return std::abs(v2) < float_equal_tolerance;
+  else if (v2 == 0.0)
+    return std::abs(v1) < float_equal_tolerance;
+  else
+    return std::abs(v1 - v2) < 1E-6F * std::max(std::abs(v1), std::abs(v2));
+}
 bool
 fuzzyZero(float v);
 bool
