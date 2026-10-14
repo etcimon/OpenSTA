@@ -1253,14 +1253,17 @@ GraphDelayCalc::annotateLoadDelays(Vertex *drvr_vertex,
                                    const Scene *scene,
                                    const MinMax *min_max)
 {
+  // makeLoadPinIndexMap numbers wire edges in this same iterator order,
+  // one edge per load pin. The delay result is already in that order, so
+  // this walk does not hash the pin again.
+  (void) load_pin_index_map;
   DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(min_max);
   VertexOutEdgeIterator edge_iter(drvr_vertex, graph_);
+  size_t load_idx = 0;
   while (edge_iter.hasNext()) {
     Edge *wire_edge = edge_iter.next();
     if (wire_edge->isWire()) {
       Vertex *load_vertex = wire_edge->to(graph_);
-      Pin *load_pin = load_vertex->pin();
-      size_t load_idx = load_pin_index_map[load_pin];
       const ArcDelay &wire_delay = dcalc_result.wireDelay(load_idx);
       const Slew &load_slew = dcalc_result.loadSlew(load_idx);
       debugPrint(debug_, "delay_calc", 3,
@@ -1295,6 +1298,7 @@ GraphDelayCalc::annotateLoadDelays(Vertex *drvr_vertex,
             observer_->delayChangedTo(load_vertex);
 	}
       }
+      load_idx++;
     }
   }
 }
