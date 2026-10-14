@@ -3675,7 +3675,7 @@ Sdc::removeDisable(Pin *pin)
 bool
 Sdc::isDisabledConstraint(const Pin *pin) const
 {
-  if (disabled_pins_.contains(pin))
+  if (!disabled_pins_.empty() && disabled_pins_.contains(pin))
     return true;
   if (!disabled_ports_.empty()) {
     Port *port = network_->port(pin);
@@ -4095,13 +4095,15 @@ Sdc::pathDelayFrom(const Pin *pin)
 bool
 Sdc::isPathDelayInternalFrom(const Pin *pin) const
 {
-  return path_delay_internal_from_.contains(pin);
+  return !path_delay_internal_from_.empty()
+    && path_delay_internal_from_.contains(pin);
 }
 
 bool
 Sdc::isPathDelayInternalFromBreak(const Pin *pin) const
 {
-  return path_delay_internal_from_break_.contains(pin);
+  return !path_delay_internal_from_break_.empty()
+    && path_delay_internal_from_break_.contains(pin);
 }
 
 const PinSet &
@@ -4179,13 +4181,15 @@ Sdc::pathDelayTo(const Pin *pin)
 bool
 Sdc::isPathDelayInternalTo(const Pin *pin) const
 {
-  return path_delay_internal_to_.contains(pin);
+  return !path_delay_internal_to_.empty()
+    && path_delay_internal_to_.contains(pin);
 }
 
 bool
 Sdc::isPathDelayInternalToBreak(const Pin *pin) const
 {
-  return path_delay_internal_to_break_.contains(pin);
+  return !path_delay_internal_to_break_.empty()
+    && path_delay_internal_to_break_.contains(pin);
 }
 
 ////////////////////////////////////////////////////////////////
