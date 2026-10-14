@@ -68,7 +68,10 @@ public:
 
   // Vertex functions.
   // Bidirect pins have two vertices.
-  Vertex *vertex(VertexId vertex_id) const;
+  // The body is an id-to-pointer. It is called on every path step.
+  Vertex *vertex(VertexId vertex_id) const {
+    return vertices_->pointer(vertex_id);
+  }
   VertexId id(const Vertex *vertex) const;
   void makePinVertices(Pin *pin);
   void makePinVertices(Pin *pin,

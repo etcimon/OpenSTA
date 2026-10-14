@@ -394,12 +394,6 @@ Graph::makeWireEdge(const Pin *from_pin,
 
 ////////////////////////////////////////////////////////////////
 
-Vertex *
-Graph::vertex(VertexId vertex_id) const
-{
-  return vertices_->pointer(vertex_id);
-}
-
 VertexId
 Graph::id(const Vertex *vertex) const
 {
