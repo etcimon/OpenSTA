@@ -629,6 +629,10 @@ Sdc::timingDerateInstance(const Pin *pin,
                           const RiseFall *rf,
                           const EarlyLate *early_late) const
 {
+  // No set_timing_derate. The stored arc delay is already the answer,
+  // scaled by 1.
+  if (!hasDeratingFactors())
+    return 1.0;
   const Instance *inst = network_->instance(pin);
   DeratingFactorsCell *factors = findKey(inst_derating_factors_, inst);
   if (factors) {
@@ -667,6 +671,8 @@ Sdc::timingDerateNet(const Pin *pin,
                      const RiseFall *rf,
                      const EarlyLate *early_late) const
 {
+  if (net_derating_factors_.empty() && derating_factors_ == nullptr)
+    return 1.0;
   const Net *net = network_->net(pin);
   DeratingFactors *factors = findKey(net_derating_factors_, net);
   if (factors) {
@@ -2232,6 +2238,8 @@ bool
 Sdc::clkStopPropagation(const Pin *pin,
                         const Clock *clk) const
 {
+  if (clk_sense_map_.empty())
+    return false;
   PinClockPair pin_clk(pin, clk);
   ClockSense sense;
   bool exists;
@@ -2250,6 +2258,8 @@ Sdc::clkStopSense(const Pin *to_pin,
                   const RiseFall *from_rf,
                   const RiseFall *to_rf) const
 {
+  if (clk_sense_map_.empty())
+    return false;
   PinClockPair pin_clk(to_pin, clk);
   ClockSense sense;
   bool exists;
