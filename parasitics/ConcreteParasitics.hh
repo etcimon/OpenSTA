@@ -25,6 +25,8 @@
 #pragma once
 
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <string>
@@ -197,6 +199,11 @@ protected:
   ConcreteParasiticMap drvr_parasitic_map_;
   ConcreteParasiticNetworkMap parasitic_network_map_;
   mutable std::mutex lock_;
+  // Bumped on every edit of the parasitic maps. A hit in the per-thread
+  // find cache is used only while this value is unchanged.
+  mutable std::atomic<uint64_t> parasitic_epoch_{0};
+
+  void invalidateParasiticReads();
 
   friend class ConcretePiElmore;
   friend class ConcreteParasiticNode;

@@ -24,6 +24,8 @@
 
 #include "ConcreteParasitics.hh"
 
+#include <cstdint>
+
 #include <algorithm> // max
 
 #include "ConcreteParasiticsPvt.hh"
@@ -775,8 +777,15 @@ ConcreteParasitics::deleteParasitics()
 }
 
 void
+ConcreteParasitics::invalidateParasiticReads()
+{
+  parasitic_epoch_.fetch_add(1, std::memory_order_release);
+}
+
+void
 ConcreteParasitics::deleteParasiticsImpl()
 {
+  invalidateParasiticReads();
   for (auto &[drvr, parasitics] : drvr_parasitic_map_) {
     for (size_t i = 0; i < min_max_rise_fall_count; i++)
       delete parasitics[i];
@@ -789,6 +798,7 @@ ConcreteParasitics::deleteParasiticsImpl()
 void
 ConcreteParasitics::deleteParasitics(const Pin *drvr_pin)
 {
+  invalidateParasiticReads();
   auto itr = drvr_parasitic_map_.find(drvr_pin);
   if (itr != drvr_parasitic_map_.end()) {
     const MinMaxRiseFallParasitics &parasitics = itr->second;
@@ -912,15 +922,35 @@ ConcreteParasitics::findPiElmore(const Pin *drvr_pin,
                                  const RiseFall *rf,
                                  const MinMax *min_max) const
 {
+  // One slot per rise/fall and min/max. The same driver is asked again
+  // for each load. A map edit bumps parasitic_epoch_, so a hit skips lock_.
+  struct Slot {
+    const ConcreteParasitics *self;
+    const Pin *pin;
+    Parasitic *parasitic;
+    uint64_t epoch;
+  };
+  thread_local Slot slots[4]{};
+  const size_t index = minMaxRiseFallIndex(min_max, rf);
+  const uint64_t epoch = parasitic_epoch_.load(std::memory_order_acquire);
+  Slot &slot = slots[index & 3U];
+  if (slot.self == this && slot.pin == drvr_pin && slot.epoch == epoch)
+    return slot.parasitic;
+
   LockGuard lock(lock_);
+  Parasitic *result = nullptr;
   auto itr = drvr_parasitic_map_.find(drvr_pin);
   if (itr != drvr_parasitic_map_.end()) {
     const MinMaxRiseFallParasitics &parasitics = itr->second;
-    ConcreteParasitic *parasitic = parasitics[minMaxRiseFallIndex(min_max, rf)];
+    ConcreteParasitic *parasitic = parasitics[index];
     if (parasitic && parasitic->isPiElmore())
-      return parasitic;
+      result = parasitic;
   }
-  return nullptr;
+  slot.self = this;
+  slot.pin = drvr_pin;
+  slot.parasitic = result;
+  slot.epoch = parasitic_epoch_.load(std::memory_order_relaxed);
+  return result;
 }
 
 Parasitic *
@@ -932,6 +962,7 @@ ConcreteParasitics::makePiElmore(const Pin *drvr_pin,
                                  float c1)
 {
   LockGuard lock(lock_);
+  invalidateParasiticReads();
   auto itr = drvr_parasitic_map_.find(drvr_pin);
   ConcretePiElmore *pi_elmore = nullptr;
   size_t mm_rf_index = minMaxRiseFallIndex(min_max, rf);
@@ -1050,6 +1081,7 @@ ConcreteParasitics::makePiPoleResidue(const Pin *drvr_pin,
                                       float c1)
 {
   LockGuard lock(lock_);
+  invalidateParasiticReads();
   auto itr = drvr_parasitic_map_.find(drvr_pin);
   ConcretePiPoleResidue *pi_pole_residue = nullptr;
   size_t mm_rf_index = minMaxRiseFallIndex(min_max, rf);
@@ -1170,6 +1202,7 @@ ConcreteParasitics::makeParasiticNetwork(const Net *net,
                                          bool includes_pin_caps)
 {
   LockGuard lock(lock_);
+  invalidateParasiticReads();
   auto itr = parasitic_network_map_.find(net);
   if (itr != parasitic_network_map_.end()) {
     parasitic_network_map_.erase(itr);
@@ -1185,6 +1218,7 @@ void
 ConcreteParasitics::deleteParasiticNetwork(const Net *net)
 {
   LockGuard lock(lock_);
+  invalidateParasiticReads();
   parasitic_network_map_.erase(net);
 }
 
