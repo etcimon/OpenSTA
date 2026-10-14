@@ -37,15 +37,13 @@ Debug::Debug(Report *report) :
 }
 
 bool
-Debug::check(std::string_view what,
-             int level) const
+Debug::checkEnabled(std::string_view what,
+                    int level) const
 {
-  if (debug_on_) {
-    auto itr = debug_map_.find(what);
-    if (itr != debug_map_.end()) {
-      int dbg_level = itr->second;
-      return dbg_level >= level;
-    }
+  auto itr = debug_map_.find(what);
+  if (itr != debug_map_.end()) {
+    int dbg_level = itr->second;
+    return dbg_level >= level;
   }
   return false;
 }

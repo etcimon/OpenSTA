@@ -47,8 +47,15 @@ public:
   int level(std::string_view what);
   void setLevel(std::string_view what,
                 int level);
+  // False unless some debug category is enabled.
+  bool debugEnabled() const { return debug_on_; }
   bool check(std::string_view what,
-             int level) const;
+             int level) const
+  {
+    if (!debug_on_)
+      return false;
+    return checkEnabled(what, level);
+  }
   int statsLevel() const { return stats_level_; }
   template <typename... Args>
   void report(std::string_view what,
@@ -67,12 +74,15 @@ protected:
   bool debug_on_{false};
   DebugMap debug_map_;
   int stats_level_{0};
+  bool checkEnabled(std::string_view what,
+                    int level) const;
 };
 
 // Inlining a varargs function would eval the args, which can
-// be expensive, so use a macro.
+// be expensive, so use a macro. The flag test skips the call when
+// debug is off, which is the usual timing run.
 #define debugPrint(debug, what, level, fmt, ...) \
-  if (debug->check(what, level)) {  \
+  if ((debug)->debugEnabled() && (debug)->check(what, level)) { \
     debug->report(what, fmt __VA_OPT__(,) __VA_ARGS__); \
   }
 
