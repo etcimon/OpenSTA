@@ -859,6 +859,50 @@ GraphDelayCalc::firstLoad(Vertex *drvr_vertex)
   return nullptr;
 }
 
+// Load cap for one driver depends on the output transition, scene, and
+// min/max, not on which input arc is being timed. A full table falls
+// back to walking the net again.
+struct DrvrCaps {
+  struct Slot {
+    const Scene *scene;
+    const MinMax *min_max;
+    const RiseFall *rf;
+    float load_cap;
+    const Parasitic *parasitic;
+  };
+  static constexpr int slot_count = 16;
+  Slot slots[slot_count];
+  int n = 0;
+
+  bool find(const Scene *scene,
+            const MinMax *min_max,
+            const RiseFall *rf,
+            float &load_cap,
+            const Parasitic *&parasitic) const
+  {
+    for (int i = 0; i < n; i++) {
+      const Slot &slot = slots[i];
+      if (slot.scene == scene && slot.min_max == min_max && slot.rf == rf) {
+        load_cap = slot.load_cap;
+        parasitic = slot.parasitic;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void add(const Scene *scene,
+           const MinMax *min_max,
+           const RiseFall *rf,
+           float load_cap,
+           const Parasitic *parasitic)
+  {
+    if (n >= slot_count)
+      return;
+    slots[n++] = {scene, min_max, rf, load_cap, parasitic};
+  }
+};
+
 static bool
 isLeafDriver(const Pin *pin,
 	     const Network *network)
@@ -944,13 +988,14 @@ GraphDelayCalc::findDriverDelays1(Vertex *drvr_vertex,
   initWireDelays(drvr_vertex);
   bool delay_changed = false;
   std::array<bool, RiseFall::index_count> delay_exists = {false, false};
+  DrvrCaps drvr_caps;
   VertexInEdgeIterator edge_iter(drvr_vertex, graph_);
   while (edge_iter.hasNext()) {
     Edge *edge = edge_iter.next();
     if (!edge->role()->isLatchDtoQ())
       delay_changed |= findDriverEdgeDelays(drvr_vertex, multi_drvr, edge,
                                             arc_delay_calc, load_pin_index_map,
-                                            delay_exists);
+                                            delay_exists, &drvr_caps);
   }
   for (const RiseFall *rf : RiseFall::range()) {
     if (!delay_exists[rf->index()])
@@ -1001,7 +1046,8 @@ GraphDelayCalc::findDriverEdgeDelays(Vertex *drvr_vertex,
                                      ArcDelayCalc *arc_delay_calc,
                                      LoadPinIndexMap &load_pin_index_map,
                                      // Return value.
-                                     std::array<bool, RiseFall::index_count> &delay_exists)
+                                     std::array<bool, RiseFall::index_count> &delay_exists,
+                                     DrvrCaps *drvr_caps)
 {
   Vertex *from_vertex = edge->from(graph_);
   const TimingArcSet *arc_set = edge->timingArcSet();
@@ -1015,7 +1061,7 @@ GraphDelayCalc::findDriverEdgeDelays(Vertex *drvr_vertex,
         for (const TimingArc *arc : arc_set->arcs()) {
           delay_changed |= findDriverArcDelays(drvr_vertex, multi_drvr, edge, arc,
                                                scene, min_max, arc_delay_calc,
-                                               load_pin_index_map);
+                                               load_pin_index_map, drvr_caps);
           delay_exists[arc->toEdge()->asRiseFall()->index()] = true;
         }
       }
@@ -1051,17 +1097,23 @@ GraphDelayCalc::findDriverArcDelays(Vertex *drvr_vertex,
                                     const Scene *scene,
                                     const MinMax *min_max,
                                     ArcDelayCalc *arc_delay_calc,
-                                    LoadPinIndexMap &load_pin_index_map)
+                                    LoadPinIndexMap &load_pin_index_map,
+                                    DrvrCaps *drvr_caps)
 {
   bool delay_changed = false;
   const RiseFall *from_rf = arc->fromEdge()->asRiseFall();
   const RiseFall *drvr_rf = arc->toEdge()->asRiseFall();
   if (from_rf && drvr_rf) {
     const Pin *drvr_pin = drvr_vertex->pin();
-    const Parasitic *parasitic;
-    float load_cap;
-    parasiticLoad(drvr_pin, drvr_rf, scene, min_max, multi_drvr, arc_delay_calc,
-                  load_cap, parasitic);
+    const Parasitic *parasitic = nullptr;
+    float load_cap = 0.0;
+    if (!(drvr_caps
+          && drvr_caps->find(scene, min_max, drvr_rf, load_cap, parasitic))) {
+      parasiticLoad(drvr_pin, drvr_rf, scene, min_max, multi_drvr, arc_delay_calc,
+                    load_cap, parasitic);
+      if (drvr_caps)
+        drvr_caps->add(scene, min_max, drvr_rf, load_cap, parasitic);
+    }
 
     if (multi_drvr
         && multi_drvr->parallelGates(network_)) {

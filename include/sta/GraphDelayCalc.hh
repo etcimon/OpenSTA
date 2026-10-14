@@ -43,6 +43,7 @@ class MultiDrvrNet;
 class FindVertexDelays;
 class NetCaps;
 class SearchPred;
+struct DrvrCaps;
 
 using MultiDrvrNetMap = std::map<const Vertex*, MultiDrvrNet*>;
 using DrvrLoadSlews = std::vector<SlewSeq>;
@@ -206,7 +207,8 @@ protected:
                             ArcDelayCalc *arc_delay_calc,
                             LoadPinIndexMap &load_pin_index_map,
                             // Return value.
-                            std::array<bool, RiseFall::index_count> &delay_exists);
+                            std::array<bool, RiseFall::index_count> &delay_exists,
+                            DrvrCaps *drvr_caps = nullptr);
   bool findDriverArcDelays(Vertex *drvr_vertex,
                            const MultiDrvrNet *multi_drvr,
                            Edge *edge,
@@ -214,7 +216,8 @@ protected:
                            const Scene *scene,
                            const MinMax *min_max,
                            ArcDelayCalc *arc_delay_calc,
-                           LoadPinIndexMap &load_pin_index_map);
+                           LoadPinIndexMap &load_pin_index_map,
+                           DrvrCaps *drvr_caps = nullptr);
   ArcDcalcArgSeq makeArcDcalcArgs(Vertex *drvr_vertex,
                                   const MultiDrvrNet *multi_drvr,
                                   Edge *edge,
