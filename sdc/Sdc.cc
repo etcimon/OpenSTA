@@ -5524,6 +5524,13 @@ Sdc::exceptionThruStates(const Pin *from_pin,
                          const MinMax *min_max,
                          ExceptionStateSet *&states)
 {
+  // Both arcs of an edge ask this. With no -thru exceptions the pin
+  // lookup does not change the tag.
+  if (first_thru_pin_exceptions_.empty()
+      && first_thru_edge_exceptions_.empty()
+      && first_thru_inst_exceptions_.empty())
+    return;
+
   const ExceptionPathSet *exceptions =
     findKeyValuePtr(first_thru_pin_exceptions_, to_pin);
   exceptionThruStates(exceptions, to_rf, min_max, states);
