@@ -58,6 +58,25 @@ Tag::Tag(Scene *scene,
   rf_index_(rf->index()),
   min_max_index_(min_max->index())
 {
+  const ClockEdge *clk_edge = clk_info_->clkEdge();
+  const int edge_index = clk_edge ? clk_edge->index() : -1;
+  const size_t scene_index = scene_->index();
+  const bool is_genclk_src = clk_info_->isGenClkSrcPath();
+  if (scene_index < (1u << 24)
+      && edge_index < 65535
+      && rf_index_ < 256
+      && min_max_index_ < 256) {
+    match_key_ok_ = true;
+    match_key_ = (uint64_t(scene_index) << 40)
+      | (uint64_t(rf_index_) << 32)
+      | (uint64_t(min_max_index_) << 24)
+      | (uint64_t(edge_index + 1) << 8)
+      | (uint64_t(is_clk_) << 2)
+      | (uint64_t(is_genclk_src) << 1)
+      | uint64_t(is_segment_start_);
+  }
+  else
+    match_key_ = 0;
   findHash();
   if (states_) {
     FilterPath *filter = scene_->sdc()->filter();
@@ -421,58 +440,73 @@ Tag::matchCmp(const Tag *tag1,
   if (tag1 == tag2)
     return 0;
 
-  size_t scene_index1 = tag1->scene()->index();
-  size_t scene_index2 = tag2->scene()->index();
-  if (scene_index1 < scene_index2)
-    return -1;
-  else if (scene_index1 > scene_index2)
-    return 1;
+  const ClkInfo *clk_info1 = nullptr;
+  const ClkInfo *clk_info2 = nullptr;
+  if (tag1->match_key_ok_ && tag2->match_key_ok_) {
+    if (tag1->match_key_ < tag2->match_key_)
+      return -1;
+    if (tag1->match_key_ > tag2->match_key_)
+      return 1;
+  }
+  else {
+    size_t scene_index1 = tag1->scene()->index();
+    size_t scene_index2 = tag2->scene()->index();
+    if (scene_index1 < scene_index2)
+      return -1;
+    else if (scene_index1 > scene_index2)
+      return 1;
 
-  int rf_index1 = tag1->rfIndex();
-  int rf_index2 = tag2->rfIndex();
-  if (rf_index1 < rf_index2)
-    return -1;
-  if (rf_index1 > rf_index2)
-    return 1;
+    int rf_index1 = tag1->rfIndex();
+    int rf_index2 = tag2->rfIndex();
+    if (rf_index1 < rf_index2)
+      return -1;
+    if (rf_index1 > rf_index2)
+      return 1;
 
-  int mm_index1 = tag1->minMaxIndex();
-  int mm_index2 = tag2->minMaxIndex();
-  if (mm_index1 < mm_index2)
-    return -1;
-  if (mm_index1 > mm_index2)
-    return 1;
+    int mm_index1 = tag1->minMaxIndex();
+    int mm_index2 = tag2->minMaxIndex();
+    if (mm_index1 < mm_index2)
+      return -1;
+    if (mm_index1 > mm_index2)
+      return 1;
 
-  const ClkInfo *clk_info1 = tag1->clkInfo();
-  const ClkInfo *clk_info2 = tag2->clkInfo();
-  const ClockEdge *clk_edge1 = clk_info1->clkEdge();
-  const ClockEdge *clk_edge2 = clk_info2->clkEdge();
-  int edge_index1 = clk_edge1 ? clk_edge1->index() : -1;
-  int edge_index2 = clk_edge2 ? clk_edge2->index() : -1;
-  if (edge_index1 < edge_index2)
-    return -1;
-  if (edge_index1 > edge_index2)
-    return 1;
+    clk_info1 = tag1->clkInfo();
+    clk_info2 = tag2->clkInfo();
+    const ClockEdge *clk_edge1 = clk_info1->clkEdge();
+    const ClockEdge *clk_edge2 = clk_info2->clkEdge();
+    int edge_index1 = clk_edge1 ? clk_edge1->index() : -1;
+    int edge_index2 = clk_edge2 ? clk_edge2->index() : -1;
+    if (edge_index1 < edge_index2)
+      return -1;
+    if (edge_index1 > edge_index2)
+      return 1;
 
-  bool is_clk1 = tag1->isClock();
-  bool is_clk2 = tag2->isClock();
-  if (!is_clk1 && is_clk2)
-    return -1;
-  if (is_clk1 && !is_clk2)
-    return 1;
+    bool is_clk1 = tag1->isClock();
+    bool is_clk2 = tag2->isClock();
+    if (!is_clk1 && is_clk2)
+      return -1;
+    if (is_clk1 && !is_clk2)
+      return 1;
 
-  bool is_genclk_src1 = clk_info1->isGenClkSrcPath();
-  bool is_genclk_src2 = clk_info2->isGenClkSrcPath();
-  if (!is_genclk_src1 && is_genclk_src2)
-    return -1;
-  if (is_genclk_src1 && !is_genclk_src2)
-    return 1;
+    bool is_genclk_src1 = clk_info1->isGenClkSrcPath();
+    bool is_genclk_src2 = clk_info2->isGenClkSrcPath();
+    if (!is_genclk_src1 && is_genclk_src2)
+      return -1;
+    if (is_genclk_src1 && !is_genclk_src2)
+      return 1;
 
-  bool is_segment_start1 = tag1->isSegmentStart();
-  bool is_segment_start2 = tag2->isSegmentStart();
-  if (!is_segment_start1 && is_segment_start2)
-    return -1;
-  if (is_segment_start1 && !is_segment_start2)
-    return 1;
+    bool is_segment_start1 = tag1->isSegmentStart();
+    bool is_segment_start2 = tag2->isSegmentStart();
+    if (!is_segment_start1 && is_segment_start2)
+      return -1;
+    if (is_segment_start1 && !is_segment_start2)
+      return 1;
+  }
+
+  if (clk_info1 == nullptr)
+    clk_info1 = tag1->clkInfo();
+  if (clk_info2 == nullptr)
+    clk_info2 = tag2->clkInfo();
 
   if (match_crpr_clk_pin) {
     VertexId crpr_vertex1 = clk_info1->crprClkVertexId(sta);

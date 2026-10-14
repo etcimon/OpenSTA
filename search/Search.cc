@@ -3181,9 +3181,13 @@ Search::deratedDelay(const Vertex *from_vertex,
   if (overlay_sdc)
     sdc = overlay_sdc;
   // ---- OpenROAD fork: analysis_corner support (end) ----
-  float derate = timingDerate(from_vertex, arc, edge, is_clk, sdc, min_max);
   const ArcDelay &delay = graph_->arcDelay(edge, arc, dcalc_ap);
-  return delayProduct(delay, derate, this);;
+  // No derate table means the factor is 1. Keep delayProduct so a scalar
+  // delay and a statistical delay stay on the same multiply as before.
+  if (!sdc->hasDeratingFactors())
+    return delayProduct(delay, 1.0F, this);
+  float derate = timingDerate(from_vertex, arc, edge, is_clk, sdc, min_max);
+  return delayProduct(delay, derate, this);
 }
 
 float

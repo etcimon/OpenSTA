@@ -25,6 +25,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "NetworkClass.hh"
@@ -136,8 +137,12 @@ private:
   ExceptionStateSet *states_;
   size_t hash_;
   size_t match_hash_;
+  // Prefix of matchCmp, packed in comparison order: scene, rise/fall,
+  // min/max, clock edge, clock flag, generated-clock source, segment start.
+  uint64_t match_key_;
   TagIndex index_;
   bool is_clk_:1;
+  bool match_key_ok_:1 {false};
   bool is_filter_:1 {false};
   bool is_loop_:1 {false};
   bool is_segment_start_:1 {false};
