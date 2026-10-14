@@ -39,16 +39,6 @@
 
 namespace sta {
 
-static bool
-searchThruSimEdge(const Vertex *vertex,
-                  const RiseFall *rf,
-                  const Mode *mode);
-static bool
-searchThruTimingSense(const Edge *edge,
-                      const RiseFall *from_rf,
-                      const RiseFall *to_rf,
-                      const Mode *mode);
-
 SearchPred::SearchPred(const StaState *sta) :
   sta_(sta)
 {
@@ -232,26 +222,10 @@ searchThru(const Edge *edge,
     && searchThru(edge->from(graph), from_rf, edge, edge->to(graph), to_rf, mode);
 }
 
-bool
-searchThru(Vertex *from_vertex,
-           const RiseFall *from_rf,
-           const Edge *edge,
-           Vertex *to_vertex,
-           const RiseFall *to_rf,
-           const Mode *mode)
-{
-  return searchThruTimingSense(edge, from_rf, to_rf, mode)
-    && searchThruSimEdge(from_vertex, from_rf, mode)
-    && searchThruSimEdge(to_vertex, to_rf, mode);
-}
-
-// set_case_analysis rising/falling filters rise/fall edges during search.
 static bool
-searchThruSimEdge(const Vertex *vertex,
-                  const RiseFall *rf,
-                  const Mode *mode)
+simValueAllows(LogicValue sim_value,
+               const RiseFall *rf)
 {
-  LogicValue sim_value = mode->sim()->simValue(vertex->pin());
   switch (sim_value) {
   case LogicValue::rise:
     return rf == RiseFall::rise();
@@ -259,16 +233,15 @@ searchThruSimEdge(const Vertex *vertex,
     return rf == RiseFall::fall();
   default:
     return true;
-  };
+  }
 }
 
 static bool
-searchThruTimingSense(const Edge *edge,
-                      const RiseFall *from_rf,
-                      const RiseFall *to_rf,
-                      const Mode *mode)
+senseAllows(TimingSense sense,
+            const RiseFall *from_rf,
+            const RiseFall *to_rf)
 {
-  switch (mode->sim()->simTimingSense(edge)) {
+  switch (sense) {
   case TimingSense::unknown:
     return true;
   case TimingSense::positive_unate:
@@ -282,6 +255,45 @@ searchThruTimingSense(const Edge *edge,
   default:
     return true;
   }
+}
+
+bool
+searchThru(Vertex *from_vertex,
+           const RiseFall *from_rf,
+           const Edge *edge,
+           Vertex *to_vertex,
+           const RiseFall *to_rf,
+           const Mode *mode)
+{
+  const Sim *sim = mode->sim();
+  return senseAllows(sim->simTimingSense(edge), from_rf, to_rf)
+    && simValueAllows(sim->simValue(from_vertex), from_rf)
+    && simValueAllows(sim->simValue(to_vertex), to_rf);
+}
+
+SearchThruShared
+searchThruShared(const Vertex *from_vertex,
+                 const RiseFall *from_rf,
+                 const Edge *edge,
+                 const Vertex *to_vertex,
+                 const Mode *mode)
+{
+  const Sim *sim = mode->sim();
+  SearchThruShared shared;
+  shared.sense = sim->simTimingSense(edge);
+  shared.from_ok = simValueAllows(sim->simValue(from_vertex), from_rf);
+  shared.to_sim = sim->simValue(to_vertex);
+  return shared;
+}
+
+bool
+searchThruSharedAllows(const SearchThruShared &shared,
+                       const RiseFall *from_rf,
+                       const RiseFall *to_rf)
+{
+  return senseAllows(shared.sense, from_rf, to_rf)
+    && shared.from_ok
+    && simValueAllows(shared.to_sim, to_rf);
 }
 
 ////////////////////////////////////////////////////////////////

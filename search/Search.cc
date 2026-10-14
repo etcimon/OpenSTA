@@ -2182,11 +2182,14 @@ PathVisitor::visitEdge(const Pin *from_pin,
           prefix.clk = prefix.from_clk_info->clock();
           prefix.from_arrival = from_path->arrival();
           prefix.dcalc_ap = from_path->dcalcAnalysisPtIndex(this);
+          // Both arcs share the from-pin constant and the edge sense.
+          const SearchThruShared thru = searchThruShared(from_vertex, from_rf,
+                                                        edge, to_vertex, mode);
           auto visit_one = [&](TimingArc *arc) {
             if (arc == nullptr)
               return true;
             const RiseFall *to_rf = arc->toEdge()->asRiseFall();
-            if (searchThru(from_vertex, from_rf, edge, to_vertex, to_rf, mode))
+            if (searchThruSharedAllows(thru, from_rf, to_rf))
               return visitFromPathPrefix(from_pin, from_vertex, from_rf, from_path,
                                          prefix, edge, arc, to_pin, to_vertex,
                                          to_rf, min_max);

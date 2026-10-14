@@ -142,6 +142,25 @@ searchThru(Vertex *from_vertex,
            const RiseFall *to_rf,
            const Mode *mode);
 
+// From-pin logic constant and edge unateness are the same for both arcs.
+// Each arc applies only its own output transition.
+struct SearchThruShared {
+  bool from_ok;
+  TimingSense sense;
+  LogicValue to_sim;
+};
+
+SearchThruShared
+searchThruShared(const Vertex *from_vertex,
+                 const RiseFall *from_rf,
+                 const Edge *edge,
+                 const Vertex *to_vertex,
+                 const Mode *mode);
+bool
+searchThruSharedAllows(const SearchThruShared &shared,
+                       const RiseFall *from_rf,
+                       const RiseFall *to_rf);
+
 ////////////////////////////////////////////////////////////////
 
 bool
