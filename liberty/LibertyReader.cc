@@ -610,7 +610,7 @@ LibertyReader::makeTableTemplateAxis(const LibertyGroup *template_group,
       const Units *units = library_->units();
       float scale = tableVariableUnit(axis_var, units)->scale();
       scaleFloats(axis_values, scale);
-      return make_shared<TableAxis>(axis_var, std::move(axis_values));
+      return internTableAxis(axis_var, std::move(axis_values));
     }
   }
   return nullptr;
@@ -2620,10 +2620,25 @@ LibertyReader::makeTableAxis(const LibertyGroup *table_group,
       const Units *units = library_->units();
       float scale = tableVariableUnit(axis_var, units)->scale();
       scaleFloats(axis_values, scale);
-      return make_shared<TableAxis>(axis_var, std::move(axis_values));
+      return internTableAxis(axis_var, std::move(axis_values));
     }
   }
   return template_axis;
+}
+
+TableAxisPtr
+LibertyReader::internTableAxis(TableAxisVariable variable,
+                               FloatSeq &&values)
+{
+  if (!values.empty()) {
+    for (const TableAxisPtr &axis : interned_axes_) {
+      if (axis->variable() == variable && axis->values() == values)
+        return axis;
+    }
+  }
+  auto axis = std::make_shared<TableAxis>(variable, std::move(values));
+  interned_axes_.push_back(axis);
+  return axis;
 }
 
 ////////////////////////////////////////////////////////////////

@@ -301,6 +301,8 @@ protected:
   TableAxisPtr makeTableAxis(const LibertyGroup *table_group,
                              std::string_view index_attr_name,
                              TableAxisPtr template_axis);
+  TableAxisPtr internTableAxis(TableAxisVariable variable,
+                               FloatSeq &&values);
   void readGroupAttrFloat(std::string_view attr_name,
                           const LibertyGroup *group,
                           const std::function<void(float)> &set_func,
@@ -522,6 +524,9 @@ protected:
   LibertyBuilder builder_;
   LibertyVariableMap var_map_;
   LibertyLibrary *library_{nullptr};
+  // Identical index vectors share one TableAxis so delay and slew tables
+  // can use one bracket.
+  std::vector<TableAxisPtr> interned_axes_;
   LibraryGroupVisitorMap group_begin_map_;
   LibraryGroupVisitorMap group_end_map_;
 

@@ -117,13 +117,37 @@ GateTableModel::gateDelay(const Pvt *pvt,
                           float &gate_delay,
                           float &drvr_slew) const
 {
-  if (delay_models_ && delay_models_->model())
-    gate_delay = findValue(pvt, delay_models_->model(), in_slew, load_cap, 0.0);
+  TableModel *delay_model = delay_models_ ? delay_models_->model() : nullptr;
+  TableModel *slew_model = slew_models_ ? slew_models_->model() : nullptr;
+  const TableAxis *axis1 = delay_model ? delay_model->axis1() : nullptr;
+  const TableAxis *axis2 = delay_model ? delay_model->axis2() : nullptr;
+  // Delay and slew tables that share both axes use one bracket. The
+  // interpolation and the scale factor stay on each table.
+  if (delay_model && slew_model
+      && delay_model->order() == 2
+      && slew_model->order() == 2
+      && axis1 && axis2
+      && axis1->size() > 1
+      && axis2->size() > 1
+      && axis1 == slew_model->axis1()
+      && axis2 == slew_model->axis2()) {
+    float value1, value2, value3;
+    findAxisValues(delay_model, in_slew, load_cap, 0.0, value1, value2, value3);
+    size_t index1 = axis1->findAxisIndex(value1);
+    size_t index2 = axis2->findAxisIndex(value2);
+    gate_delay = delay_model->findValueOrder2(index1, index2, value1, value2,
+                                              cell_, pvt);
+    drvr_slew = slew_model->findValueOrder2(index1, index2, value1, value2,
+                                            cell_, pvt);
+    drvr_slew = std::max(drvr_slew, 0.0F);
+    return;
+  }
+  if (delay_model)
+    gate_delay = findValue(pvt, delay_model, in_slew, load_cap, 0.0);
   else
     gate_delay = 0.0;
-  if (slew_models_ && slew_models_->model()) {
-    drvr_slew = findValue(pvt, slew_models_->model(), in_slew, load_cap, 0.0);
-    // Clip negative slews to zero.
+  if (slew_model) {
+    drvr_slew = findValue(pvt, slew_model, in_slew, load_cap, 0.0);
     drvr_slew = std::max(drvr_slew, 0.0F);
   }
   else
@@ -841,6 +865,18 @@ TableModel::findValue(const LibertyCell *cell,
 }
 
 float
+TableModel::findValueOrder2(size_t index1,
+                            size_t index2,
+                            float value1,
+                            float value2,
+                            const LibertyCell *cell,
+                            const Pvt *pvt) const
+{
+  return table_->evalOrder2(index1, index2, value1, value2)
+      * scaleFactor(cell, pvt);
+}
+
+float
 TableModel::scaleFactor(const LibertyCell *cell,
                         const Pvt *pvt) const
 {
@@ -1105,6 +1141,15 @@ Table::findValueOrder2(float axis_value1,
   }
   size_t axis_index1 = axis1_->findAxisIndex(axis_value1);
   size_t axis_index2 = axis2_->findAxisIndex(axis_value2);
+  return evalOrder2(axis_index1, axis_index2, axis_value1, axis_value2);
+}
+
+float
+Table::evalOrder2(size_t axis_index1,
+                  size_t axis_index2,
+                  float axis_value1,
+                  float axis_value2) const
+{
   double x1 = axis_value1;
   double x2 = axis_value2;
   double y00 = value(axis_index1, axis_index2);

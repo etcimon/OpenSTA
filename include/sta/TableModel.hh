@@ -272,6 +272,11 @@ public:
   float findValue(float axis_value1,
                   float axis_value2,
                   float axis_value3) const;
+  // Order-2 interpolation at a bracket already found on these axes.
+  float evalOrder2(size_t index1,
+                   size_t index2,
+                   float axis_value1,
+                   float axis_value2) const;
   // One-argument lookup (order 1).
   void findValue(float axis_value1,
                  float &value,
@@ -378,6 +383,13 @@ public:
                   float value1,
                   float value2,
                   float value3) const;
+  // Same scale as findValue, using a bracket shared with another table.
+  float findValueOrder2(size_t index1,
+                        size_t index2,
+                        float value1,
+                        float value2,
+                        const LibertyCell *cell,
+                        const Pvt *pvt) const;
   std::string reportValue(std::string_view result_name,
                           const LibertyCell *cell,
                           const Pvt *pvt,
