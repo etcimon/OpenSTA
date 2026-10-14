@@ -2132,6 +2132,19 @@ PathVisitor::visitFanoutPaths(Vertex *from_vertex)
   }
 }
 
+struct FromPathPrefix {
+  const TimingRole *role;
+  Tag *from_tag;
+  Scene *scene;
+  const Mode *mode;
+  const Sdc *sdc;
+  const ClkInfo *from_clk_info;
+  const ClockEdge *clk_edge;
+  const Clock *clk;
+  Arrival from_arrival;
+  DcalcAPIndex dcalc_ap;
+};
+
 bool
 PathVisitor::visitEdge(const Pin *from_pin,
                        Vertex *from_vertex,
@@ -2156,12 +2169,34 @@ PathVisitor::visitEdge(const Pin *from_pin,
         const RiseFall *from_rf = from_path->transition(this);
         TimingArc *arc1, *arc2;
         arc_set->arcsFrom(from_rf, arc1, arc2);
-        if (!visitArc(from_pin, from_vertex, from_rf, from_path, edge, arc1, to_pin,
-                      to_vertex, min_max, mode))
-          return false;
-        if (!visitArc(from_pin, from_vertex, from_rf, from_path, edge, arc2, to_pin,
-                      to_vertex, min_max, mode))
-          return false;
+        // Both arcs share this from-path. Load it once, then arc1, then arc2.
+        if (arc1 || arc2) {
+          FromPathPrefix prefix;
+          prefix.role = edge->role();
+          prefix.from_tag = from_path->tag(this);
+          prefix.scene = prefix.from_tag->scene();
+          prefix.mode = prefix.scene->mode();
+          prefix.sdc = prefix.scene->sdc();
+          prefix.from_clk_info = prefix.from_tag->clkInfo();
+          prefix.clk_edge = prefix.from_clk_info->clkEdge();
+          prefix.clk = prefix.from_clk_info->clock();
+          prefix.from_arrival = from_path->arrival();
+          prefix.dcalc_ap = from_path->dcalcAnalysisPtIndex(this);
+          auto visit_one = [&](TimingArc *arc) {
+            if (arc == nullptr)
+              return true;
+            const RiseFall *to_rf = arc->toEdge()->asRiseFall();
+            if (searchThru(from_vertex, from_rf, edge, to_vertex, to_rf, mode))
+              return visitFromPathPrefix(from_pin, from_vertex, from_rf, from_path,
+                                         prefix, edge, arc, to_pin, to_vertex,
+                                         to_rf, min_max);
+            return true;
+          };
+          if (!visit_one(arc1))
+            return false;
+          if (!visit_one(arc2))
+            return false;
+        }
       }
     }
   }
@@ -2201,18 +2236,46 @@ PathVisitor::visitFromPath(const Pin *from_pin,
                            const RiseFall *to_rf,
                            const MinMax *min_max)
 {
-  const TimingRole *role = edge->role();
-  Tag *from_tag = from_path->tag(this);
-  Scene *scene = from_tag->scene();
-  const Mode *mode = scene->mode();
-  const Sdc *sdc = scene->sdc();
-  const ClkInfo *from_clk_info = from_tag->clkInfo();
+  FromPathPrefix prefix;
+  prefix.role = edge->role();
+  prefix.from_tag = from_path->tag(this);
+  prefix.scene = prefix.from_tag->scene();
+  prefix.mode = prefix.scene->mode();
+  prefix.sdc = prefix.scene->sdc();
+  prefix.from_clk_info = prefix.from_tag->clkInfo();
+  prefix.clk_edge = prefix.from_clk_info->clkEdge();
+  prefix.clk = prefix.from_clk_info->clock();
+  prefix.from_arrival = from_path->arrival();
+  prefix.dcalc_ap = from_path->dcalcAnalysisPtIndex(this);
+  return visitFromPathPrefix(from_pin, from_vertex, from_rf, from_path, prefix,
+                             edge, arc, to_pin, to_vertex, to_rf, min_max);
+}
+
+bool
+PathVisitor::visitFromPathPrefix(const Pin *from_pin,
+                                 Vertex *from_vertex,
+                                 const RiseFall *from_rf,
+                                 Path *from_path,
+                                 const FromPathPrefix &prefix,
+                                 Edge *edge,
+                                 TimingArc *arc,
+                                 const Pin *to_pin,
+                                 Vertex *to_vertex,
+                                 const RiseFall *to_rf,
+                                 const MinMax *min_max)
+{
+  const TimingRole *role = prefix.role;
+  Tag *from_tag = prefix.from_tag;
+  Scene *scene = prefix.scene;
+  const Mode *mode = prefix.mode;
+  const Sdc *sdc = prefix.sdc;
+  const ClkInfo *from_clk_info = prefix.from_clk_info;
   Tag *to_tag = nullptr;
-  const ClockEdge *clk_edge = from_clk_info->clkEdge();
-  const Clock *clk = from_clk_info->clock();
-  Arrival from_arrival = from_path->arrival();
+  const ClockEdge *clk_edge = prefix.clk_edge;
+  const Clock *clk = prefix.clk;
+  Arrival from_arrival = prefix.from_arrival;
   ArcDelay arc_delay = 0.0;
-  DcalcAPIndex dcalc_ap = from_path->dcalcAnalysisPtIndex(this);
+  DcalcAPIndex dcalc_ap = prefix.dcalc_ap;
   Arrival to_arrival;
   if (from_clk_info->isGenClkSrcPath()) {
     if (!sdc->clkStopPropagation(clk, from_pin, from_rf, to_pin, to_rf)

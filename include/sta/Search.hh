@@ -62,6 +62,7 @@ class VisitPathEnds;
 class GatedClk;
 class CheckCrpr;
 class Scene;
+struct FromPathPrefix;
 
 using ClkInfoSet = std::set<const ClkInfo*, ClkInfoLess>;
 using TagSet = std::unordered_set<Tag*, TagHash, TagEqual>;
@@ -753,6 +754,19 @@ protected:
                              Vertex *to_vertex,
                              const RiseFall *to_rf,
                              const MinMax *min_max);
+  // from_path and edge are already loaded in prefix. arc1 then arc2
+  // still run in that order.
+  bool visitFromPathPrefix(const Pin *from_pin,
+                           Vertex *from_vertex,
+                           const RiseFall *from_rf,
+                           Path *from_path,
+                           const FromPathPrefix &prefix,
+                           Edge *edge,
+                           TimingArc *arc,
+                           const Pin *to_pin,
+                           Vertex *to_vertex,
+                           const RiseFall *to_rf,
+                           const MinMax *min_max);
 
   SearchPred *pred_;
   TagSet *tag_cache_;
