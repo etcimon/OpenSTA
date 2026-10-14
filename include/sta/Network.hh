@@ -299,7 +299,8 @@ public:
   virtual PortDirection *direction(const Pin *pin) const = 0;
   virtual bool isLeaf(const Pin *pin) const;
   [[nodiscard]] bool isHierarchical(const Pin *pin) const;
-  [[nodiscard]] bool isTopLevelPort(const Pin *pin) const;
+  // dbNetwork answers this from the pin tag. Other networks use instance().
+  [[nodiscard]] virtual bool isTopLevelPort(const Pin *pin) const;
   // Is pin inside the instance hier_pin is attached to?
   [[nodiscard]] bool isInside(const Pin *pin,
                               const Pin *hier_pin) const;
