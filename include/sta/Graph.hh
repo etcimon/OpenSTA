@@ -142,6 +142,13 @@ public:
   ArcDelay arcDelay(const Edge *edge,
                     const TimingArc *arc,
                     DcalcAPIndex ap_index) const;
+  // Both arcs from one float array. Scalar delays only.
+  void scalarArcDelays(const Edge *edge,
+                       const TimingArc *arc1,
+                       const TimingArc *arc2,
+                       DcalcAPIndex ap_index,
+                       ArcDelay &delay1,
+                       ArcDelay &delay2) const;
   void setArcDelay(Edge *edge,
                    const TimingArc *arc,
                    DcalcAPIndex ap_index,
@@ -295,6 +302,9 @@ public:
   [[nodiscard]] bool hasDownstreamClkPin() const { return has_downstream_clk_pin_; }
   void setHasDownstreamClkPin(bool has_clk_pin);
   [[nodiscard]] bool isRegClk() const { return is_reg_clk_; }
+  // Set by ClkNetwork::findClkPins. Matches pin_clks_map_.
+  [[nodiscard]] bool isClkNetwork() const { return is_clk_network_; }
+  void setIsClkNetwork(bool is_clk_network);
   // Has sim value in some mode.
   [[nodiscard]] bool hasSimValue() const { return has_sim_value_; }
   void setHasSimValue(bool has_sim);
@@ -341,6 +351,7 @@ protected:
   // This flag distinguishes the driver and load vertices.
   unsigned int is_bidirect_drvr_:1;
   unsigned int is_reg_clk_:1;
+  unsigned int is_clk_network_:1;
   // Constrained by timing check edge.
   unsigned int has_checks_:1;
   // Is the clock for a timing check.

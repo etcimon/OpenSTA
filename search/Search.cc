@@ -2145,7 +2145,32 @@ struct FromPathPrefix {
   const Clock *clk;
   Arrival from_arrival;
   DcalcAPIndex dcalc_ap;
+  // Both arcs read these. Set only when mutateTag would not make a tag.
+  bool direct_sibling;
+  Tag *sibling_tag[RiseFall::index_count];
+  // Both arcs. Valid when use_raw_delay is true.
+  bool use_raw_delay;
+  const TimingArc *raw_arc1;
+  const TimingArc *raw_arc2;
+  ArcDelay raw_delay1;
+  ArcDelay raw_delay2;
 };
+
+static void
+setDirectSibling(FromPathPrefix &prefix,
+                 Search *search)
+{
+  const Tag *tag = prefix.from_tag;
+  // Data arcs pass the from clk info through, with no input delay and
+  // no segment start on the to tag. That is an array read when the
+  // from tag has no state and no -thru exception can add one.
+  prefix.direct_sibling = tag->states() == nullptr
+                          && !tag->isSegmentStart()
+                          && tag->inputDelay() == nullptr
+                          && !prefix.sdc->hasThruExceptions();
+  if (prefix.direct_sibling)
+    search->siblingTags(tag, prefix.sibling_tag);
+}
 
 bool
 PathVisitor::visitEdge(const Pin *from_pin,
@@ -2161,29 +2186,39 @@ PathVisitor::visitEdge(const Pin *from_pin,
     const Mode *prev_mode = nullptr;
     while (from_iter.hasNext()) {
       Path *from_path = from_iter.next();
-      const Mode *mode = from_path->mode(this);
+      // One tag read. mode, min/max, and transition all come from it.
+      Tag *from_tag = from_path->tag(this);
+      Scene *scene = from_tag->scene();
+      const Mode *mode = scene->mode();
       if (mode == prev_mode
           || (pred_->searchFrom(from_vertex, mode)
               && pred_->searchThru(edge, mode)
               && pred_->searchTo(to_vertex, mode))) {
         prev_mode = mode;
-        const MinMax *min_max = from_path->minMax(this);
-        const RiseFall *from_rf = from_path->transition(this);
+        const MinMax *min_max = from_tag->minMax();
+        const RiseFall *from_rf = from_tag->transition();
         TimingArc *arc1, *arc2;
         arc_set->arcsFrom(from_rf, arc1, arc2);
         // Both arcs share this from-path. Load it once, then arc1, then arc2.
         if (arc1 || arc2) {
           FromPathPrefix prefix;
           prefix.role = edge->role();
-          prefix.from_tag = from_path->tag(this);
-          prefix.scene = prefix.from_tag->scene();
-          prefix.mode = prefix.scene->mode();
-          prefix.sdc = prefix.scene->sdc();
-          prefix.from_clk_info = prefix.from_tag->clkInfo();
+          prefix.from_tag = from_tag;
+          prefix.scene = scene;
+          prefix.mode = mode;
+          prefix.sdc = scene->sdc();
+          prefix.from_clk_info = from_tag->clkInfo();
           prefix.clk_edge = prefix.from_clk_info->clkEdge();
           prefix.clk = prefix.from_clk_info->clock();
           prefix.from_arrival = from_path->arrival();
-          prefix.dcalc_ap = from_path->dcalcAnalysisPtIndex(this);
+          prefix.dcalc_ap = scene->dcalcAnalysisPtIndex(min_max);
+          setDirectSibling(prefix, search_);
+          prefix.raw_arc1 = arc1;
+          prefix.raw_arc2 = arc2;
+          prefix.use_raw_delay = search_->rawArcDelays(edge, arc1, arc2,
+                                                      prefix.dcalc_ap, prefix.sdc,
+                                                      prefix.raw_delay1,
+                                                      prefix.raw_delay2);
           // Both arcs share the from-pin constant and the edge sense.
           const SearchThruShared thru = searchThruShared(from_vertex, from_rf,
                                                         edge, to_vertex, mode);
@@ -2252,6 +2287,8 @@ PathVisitor::visitFromPath(const Pin *from_pin,
   prefix.clk = prefix.from_clk_info->clock();
   prefix.from_arrival = from_path->arrival();
   prefix.dcalc_ap = from_path->dcalcAnalysisPtIndex(this);
+  prefix.use_raw_delay = false;
+  setDirectSibling(prefix, search_);
   return visitFromPathPrefix(from_pin, from_vertex, from_rf, from_path, prefix,
                              edge, arc, to_pin, to_vertex, to_rf, min_max);
 }
@@ -2307,8 +2344,8 @@ PathVisitor::visitFromPathPrefix(const Pin *from_pin,
                                                       dcalc_ap,
                                                       sdc);
           bool arc_delay_min_max_eq = delayEqual(arc_delay, arc_delay_opp, this);
-          to_tag = search_->thruClkTag(from_path, from_vertex, from_tag, true,
-                                       edge, to_rf, arc_delay_min_max_eq,
+          to_tag = search_->thruClkTag(from_path, from_vertex, to_vertex, from_tag,
+                                       true, edge, to_rf, arc_delay_min_max_eq,
                                        min_max, scene);
           if (to_tag)
             to_arrival = delaySum(from_arrival, arc_delay, this);
@@ -2394,7 +2431,7 @@ PathVisitor::visitFromPathPrefix(const Pin *from_pin,
           from_vertex, arc, edge, to_propagates_clk, min_max, dcalc_ap_opp, sdc);
       bool arc_delay_min_max_eq =
         fuzzyEqual(delayAsFloat(arc_delay), delayAsFloat(arc_delay_opp));
-      to_tag = search_->thruClkTag(from_path, from_vertex, from_tag,
+      to_tag = search_->thruClkTag(from_path, from_vertex, to_vertex, from_tag,
                                    to_propagates_clk, edge, to_rf,
                                    arc_delay_min_max_eq,
                                    min_max, scene);
@@ -2404,11 +2441,29 @@ PathVisitor::visitFromPathPrefix(const Pin *from_pin,
   else {
     if (!(sdc->isPathDelayInternalFromBreak(to_pin)
           || sdc->isPathDelayInternalToBreak(from_pin))) {
-      arc_delay = search_->deratedDelay(from_vertex, arc, edge, false,
-                                        min_max, dcalc_ap, sdc);
-      if (!delayInf(arc_delay, this)) {
-        to_arrival = delaySum(from_arrival, arc_delay, this);
-        to_tag = search_->thruTag(from_tag, edge, to_rf, tag_cache_);
+      if (prefix.use_raw_delay)
+        arc_delay = (arc == prefix.raw_arc1) ? prefix.raw_delay1
+                                             : prefix.raw_delay2;
+      else
+        arc_delay = search_->deratedDelay(from_vertex, arc, edge, false,
+                                          min_max, dcalc_ap, sdc);
+      // Scalar raw delays add means. The virtual delay ops do the same
+      // when there is no statistical delay.
+      const bool finite = prefix.use_raw_delay
+                            ? !fuzzyInf(arc_delay.mean())
+                            : !delayInf(arc_delay, this);
+      if (finite) {
+        if (prefix.use_raw_delay)
+          to_arrival = Delay(from_arrival.mean() + arc_delay.mean());
+        else
+          to_arrival = delaySum(from_arrival, arc_delay, this);
+        if (prefix.direct_sibling)
+          to_tag = prefix.sibling_tag[to_rf->index()];
+        else
+          // from_pin, to_pin, and to_vertex were resolved for this edge.
+          to_tag = search_->thruTag(from_tag, from_pin, from_rf, from_clk_info,
+                                    to_pin, to_vertex->isRegClk(), to_rf,
+                                    tag_cache_);
       }
     }
   }
@@ -2561,27 +2616,37 @@ Search::clkInfoWithCrprClkPath(const ClkInfo *from_clk_info,
 // Return nullptr if the result tag completes a false path.
 Tag *
 Search::thruTag(Tag *from_tag,
+                const Pin *from_pin,
+                const RiseFall *from_rf,
+                const ClkInfo *from_clk_info,
+                const Pin *to_pin,
+                bool to_is_reg_clk,
+                const RiseFall *to_rf,
+                TagSet *tag_cache)
+{
+  // Input delay is not propagated. The to edge is not a clock.
+  return mutateTag(from_tag, from_pin, from_rf, false, from_clk_info, to_pin,
+                   to_rf, false, to_is_reg_clk, false,
+                   from_clk_info, nullptr, tag_cache);
+}
+
+Tag *
+Search::thruTag(Tag *from_tag,
                 Edge *edge,
                 const RiseFall *to_rf,
                 TagSet *tag_cache)
 {
-  const Pin *from_pin = edge->from(graph_)->pin();
   Vertex *to_vertex = edge->to(graph_);
-  const Pin *to_pin = to_vertex->pin();
-  const RiseFall *from_rf = from_tag->transition();
-  const ClkInfo *from_clk_info = from_tag->clkInfo();
-  bool to_is_reg_clk = to_vertex->isRegClk();
-  Tag *to_tag = mutateTag(from_tag, from_pin, from_rf, false, from_clk_info, to_pin,
-                          to_rf, false, to_is_reg_clk, false,
-                          // input delay is not propagated.
-                          from_clk_info, nullptr, tag_cache);
-  return to_tag;
+  return thruTag(from_tag, edge->from(graph_)->pin(), from_tag->transition(),
+                 from_tag->clkInfo(), to_vertex->pin(), to_vertex->isRegClk(),
+                 to_rf, tag_cache);
 }
 
 // thruTag for clocks.
 Tag *
 Search::thruClkTag(Path *from_path,
                    Vertex *from_vertex,
+                   Vertex *to_vertex,
                    Tag *from_tag,
                    bool to_propagates_clk,
                    Edge *edge,
@@ -2590,8 +2655,7 @@ Search::thruClkTag(Path *from_path,
                    const MinMax *min_max,
                    Scene *scene)
 {
-  const Pin *from_pin = edge->from(graph_)->pin();
-  Vertex *to_vertex = edge->to(graph_);
+  const Pin *from_pin = from_vertex->pin();
   const Pin *to_pin = to_vertex->pin();
   const RiseFall *from_rf = from_tag->transition();
   const ClkInfo *from_clk_info = from_tag->clkInfo();
@@ -3086,6 +3150,17 @@ Search::tag(TagIndex index) const
   return tags_[index];
 }
 
+void
+Search::siblingTags(const Tag *tag,
+                    Tag *tags[2]) const
+{
+  TagIndex index = tag->index();
+  tags[RiseFall::rise()->index()] =
+    tags_[tagsTableRfIndex(index, RiseFall::rise())];
+  tags[RiseFall::fall()->index()] =
+    tags_[tagsTableRfIndex(index, RiseFall::fall())];
+}
+
 TagIndex
 Search::tagCount() const
 {
@@ -3229,6 +3304,25 @@ int
 Search::clkInfoCount() const
 {
   return clk_info_set_->size();
+}
+
+bool
+Search::rawArcDelays(const Edge *edge,
+                     const TimingArc *arc1,
+                     const TimingArc *arc2,
+                     DcalcAPIndex dcalc_ap,
+                     const Sdc *path_sdc,
+                     ArcDelay &delay1,
+                     ArcDelay &delay2) const
+{
+  // Same overlay rule as deratedDelay. A non-null overlay has derates,
+  // so the stored arc delay would not be the result.
+  const Sdc *overlay =
+    scenes_[Scene::indexFromDcalcAP(dcalc_ap)]->sdcOverlayForDerate();
+  if (overlay || path_sdc->hasDeratingFactors() || variables_->pocvEnabled())
+    return false;
+  graph_->scalarArcDelays(edge, arc1, arc2, dcalc_ap, delay1, delay2);
+  return true;
 }
 
 ArcDelay

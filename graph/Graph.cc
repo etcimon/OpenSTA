@@ -752,6 +752,21 @@ Graph::arcDelay(const Edge *edge,
 }
 
 void
+Graph::scalarArcDelays(const Edge *edge,
+                       const TimingArc *arc1,
+                       const TimingArc *arc2,
+                       DcalcAPIndex ap_index,
+                       ArcDelay &delay1,
+                       ArcDelay &delay2) const
+{
+  const float *delays = edge->arcDelays();
+  if (arc1)
+    delay1 = delays[arc1->index() * ap_count_ + ap_index];
+  if (arc2)
+    delay2 = delays[arc2->index() * ap_count_ + ap_index];
+}
+
+void
 Graph::setArcDelay(Edge *edge,
                    const TimingArc *arc,
                    DcalcAPIndex ap_index,
@@ -1043,6 +1058,7 @@ Vertex::init(Pin *pin,
   tag_group_index_ = tag_group_index_max;
   is_bidirect_drvr_ = is_bidirect_drvr;
   is_reg_clk_ = is_reg_clk;
+  is_clk_network_ = false;
   has_checks_ = false;
   is_check_clk_ = false;
   has_downstream_clk_pin_ = false;
@@ -1159,6 +1175,12 @@ void
 Vertex::setHasSimValue(bool has_sim)
 {
   has_sim_value_ = has_sim;
+}
+
+void
+Vertex::setIsClkNetwork(bool is_clk_network)
+{
+  is_clk_network_ = is_clk_network;
 }
 
 bool

@@ -205,6 +205,10 @@ public:
   EvalPred *evalPred() const { return eval_pred_; }
   SearchPred *searchAdj() const { return search_thru_; }
   Tag *tag(TagIndex index) const;
+  // Rise and fall tags stored together when the tag was created.
+  // tags[rf->index()] is the no-change result of mutateTag.
+  void siblingTags(const Tag *tag,
+                   Tag *tags[2]) const;
   TagIndex tagCount() const;
   TagGroupIndex tagGroupCount() const;
   void reportTagGroups() const;
@@ -240,8 +244,18 @@ public:
                Edge *edge,
                const RiseFall *to_rf,
                TagSet *tag_cache);
+  // Endpoints the path visitor already holds. Same tag as the edge form.
+  Tag *thruTag(Tag *from_tag,
+               const Pin *from_pin,
+               const RiseFall *from_rf,
+               const ClkInfo *from_clk_info,
+               const Pin *to_pin,
+               bool to_is_reg_clk,
+               const RiseFall *to_rf,
+               TagSet *tag_cache);
   Tag *thruClkTag(Path *from_path,
                   Vertex *from_vertex,
+                  Vertex *to_vertex,
                   Tag *from_tag,
                   bool to_propagates_clk,
                   Edge *edge,
@@ -343,6 +357,15 @@ public:
                              Arrival insertion,
                              const MinMax *min_max);
   // Timing derated arc delay for a path analysis point.
+  // Both arcs, when the delay is the stored arc delay. False when a
+  // derate or a statistical delay still has to go through deratedDelay.
+  bool rawArcDelays(const Edge *edge,
+                    const TimingArc *arc1,
+                    const TimingArc *arc2,
+                    DcalcAPIndex dcalc_ap,
+                    const Sdc *path_sdc,
+                    ArcDelay &delay1,
+                    ArcDelay &delay2) const;
   ArcDelay deratedDelay(const Vertex *from_vertex,
                         const TimingArc *arc,
                         const Edge *edge,

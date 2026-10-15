@@ -59,6 +59,16 @@ void
 ClkNetwork::clear()
 {
   clk_pins_valid_ = false;
+  for (const auto &[pin, clks] : pin_clks_map_) {
+    (void) clks;
+    Vertex *vertex;
+    Vertex *bidirect_drvr_vertex;
+    graph_->pinVertices(pin, vertex, bidirect_drvr_vertex);
+    if (vertex)
+      vertex->setIsClkNetwork(false);
+    if (bidirect_drvr_vertex)
+      bidirect_drvr_vertex->setIsClkNetwork(false);
+  }
   pin_clks_map_.clear();
   deleteContents(clk_pins_map_);
   pin_ideal_clks_map_.clear();
@@ -162,6 +172,10 @@ ClkNetwork::findClkPins(bool ideal_only,
           clk_pins->insert(pin);
           ClockSet &pin_clks = pin_clks_map[pin];
           pin_clks.insert(clk);
+          // The propagated network is what isClock reads. Record it on
+          // the vertex the walk already holds.
+          if (!ideal_only)
+            vertex->setIsClkNetwork(true);
           graph_->visitFanouts(vertex, &srch_pred,
                                [&queue, &visited] (Vertex *fanout) {
                                  if (!visited.contains(fanout)) {
@@ -184,7 +198,7 @@ ClkNetwork::isClock(const Pin *pin) const
 bool
 ClkNetwork::isClock(const Vertex *vertex) const
 {
-  return isClock(vertex->pin());
+  return vertex->isClkNetwork();
 }
 
 bool

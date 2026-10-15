@@ -1016,6 +1016,12 @@ public:
                            const RiseFall *to_rf,
                            const MinMax *min_max,
                            ExceptionStateSet *&states);
+  // Same three maps as the empty return in exceptionThruStates.
+  bool hasThruExceptions() const {
+    return !(first_thru_pin_exceptions_.empty()
+             && first_thru_edge_exceptions_.empty()
+             && first_thru_inst_exceptions_.empty());
+  }
   // Find the highest priority exception with first exception pt at
   // pin/clk end.
   void exceptionTo(ExceptionPathType type,
