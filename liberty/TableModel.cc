@@ -1002,6 +1002,31 @@ Table::clear()
     values1_.clear();
   else if (order_ == 2 || order_ == 3)
     values_table_.clear();
+  values2_.clear();
+  values2_stride_ = 0;
+}
+
+void
+Table::packOrder2()
+{
+  values2_.clear();
+  values2_stride_ = 0;
+  if (values_table_.empty())
+    return;
+  const size_t cols = values_table_[0].size();
+  if (cols == 0)
+    return;
+  for (const FloatSeq &row : values_table_) {
+    if (row.size() != cols)
+      return;
+  }
+  values2_.resize(values_table_.size() * cols);
+  size_t n = 0;
+  for (const FloatSeq &row : values_table_) {
+    for (float value : row)
+      values2_[n++] = value;
+  }
+  values2_stride_ = cols;
 }
 
 FloatSeq *
@@ -1062,6 +1087,7 @@ Table::Table(FloatTable &&values,
   axis1_(std::move(axis1)),
   axis2_(std::move(axis2))
 {
+  packOrder2();
 }
 
 Table::Table(FloatTable &&values,
@@ -1082,10 +1108,13 @@ Table::Table(Table &&table) noexcept :
   value_(table.value_),
   values1_(std::move(table.values1_)),
   values_table_(std::move(table.values_table_)),
+  values2_(std::move(table.values2_)),
+  values2_stride_(table.values2_stride_),
   axis1_(std::move(table.axis1_)),
   axis2_(std::move(table.axis2_)),
   axis3_(std::move(table.axis3_))
 {
+  table.values2_stride_ = 0;
 }
 
 Table::Table(const Table &table) = default;
@@ -1098,6 +1127,9 @@ Table::operator=(Table &&table) noexcept
     value_ = table.value_;
     values1_ = std::move(table.values1_);
     values_table_ = std::move(table.values_table_);
+    values2_ = std::move(table.values2_);
+    values2_stride_ = table.values2_stride_;
+    table.values2_stride_ = 0;
     axis1_ = table.axis1_;
     axis2_ = table.axis2_;
     axis3_ = table.axis3_;
@@ -1125,7 +1157,7 @@ Table::value(size_t axis_idx1,
   if (order_ == 1)
     return values1_[axis_idx1];
   if (order_ == 2)
-    return values_table_[axis_idx1][axis_idx2];
+    return value(axis_idx1, axis_idx2);
   // order_ == 3
   size_t row = axis_idx1 * axis2_->size() + axis_idx2;
   return values_table_[row][axis_idx3];
@@ -1143,6 +1175,10 @@ float
 Table::value(size_t axis_index1,
              size_t axis_index2) const
 {
+  // Rectangular order-2 grids are one row-major array. The nested
+  // table remains for order 3 and for ragged rows.
+  if (values2_stride_ != 0)
+    return values2_[axis_index1 * values2_stride_ + axis_index2];
   return values_table_[axis_index1][axis_index2];
 }
 

@@ -261,6 +261,10 @@ public:
   [[nodiscard]] bool isLoad(const Network *network) const;
   Level level() const { return level_; }
   void setLevel(Level level);
+  // Fanin counted by Levelize::findTopologicalOrder. Zero outside that pass.
+  int levelizeInDegree() const { return levelize_in_degree_; }
+  void setLevelizeInDegree(int degree) { levelize_in_degree_ = degree; }
+  void incrLevelizeInDegree(int delta) { levelize_in_degree_ += delta; }
   [[nodiscard]] bool visited() const { return visited1_; }
   void setVisited(bool visited);
   [[nodiscard]] bool visited2() const { return visited2_; }
@@ -328,6 +332,8 @@ protected:
   // cannot share the same word as the following bit fields.
   uint32_t tag_group_index_;
   uint32_t object_idx_;
+  // Scratch fanin for one topological sort. Not read by search.
+  int levelize_in_degree_;
   // Each bit corresponds to a different BFS queue.
   std::atomic<uint8_t> bfs_in_queue_; // 8
 

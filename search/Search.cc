@@ -64,6 +64,7 @@
 #include "RiseFallMinMaxDelay.hh"
 #include "Scene.hh"
 #include "Sdc.hh"
+#include "Variables.hh"
 #include "SdcClass.hh"
 #include "SearchClass.hh"
 #include "SearchPred.hh"
@@ -3249,10 +3250,14 @@ Search::deratedDelay(const Vertex *from_vertex,
     sdc = overlay_sdc;
   // ---- OpenROAD fork: analysis_corner support (end) ----
   const ArcDelay &delay = graph_->arcDelay(edge, arc, dcalc_ap);
-  // No derate table means the factor is 1. Keep delayProduct so a scalar
-  // delay and a statistical delay stay on the same multiply as before.
-  if (!sdc->hasDeratingFactors())
+  // No derate table means the factor is 1. A scalar arc delay is stored
+  // as one float and rebuilt as Delay(mean), so Delay(mean * 1) is that
+  // same value. Normal and skew products still rescale variance.
+  if (!sdc->hasDeratingFactors()) {
+    if (!variables_->pocvEnabled())
+      return delay;
     return delayProduct(delay, 1.0F, this);
+  }
   float derate = timingDerate(from_vertex, arc, edge, is_clk, sdc, min_max);
   return delayProduct(delay, derate, this);
 }

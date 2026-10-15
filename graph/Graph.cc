@@ -1050,6 +1050,7 @@ Vertex::init(Pin *pin,
   visited2_ = false;
   has_sim_value_ = false;
   level_ = 0;
+  levelize_in_degree_ = 0;
   slew_annotated_ = false;
   bfs_in_queue_ = 0;
   bfs_predecessor_changed_ = false;

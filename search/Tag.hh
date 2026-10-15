@@ -102,6 +102,9 @@ public:
                       const Tag *tag2,
                       bool match_crpr_clk_pin,
                       const StaState *sta);
+  // Packed prefix of matchCmp. False when the key does not fit.
+  bool matchKeyOk() const { return match_key_ok_; }
+  uint64_t matchKey() const { return match_key_; }
   static bool match(const Tag *tag1,
                     const Tag *tag2,
                     bool match_crpr_clk_pin,

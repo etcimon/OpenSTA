@@ -405,10 +405,32 @@ TagMatchLess::TagMatchLess(bool match_crpr_clk_pin,
 {
 }
 
+// 0 when tag1 == tag2, -1 or 1 when the packed key decides, 2 when
+// CRPR and exception state still have to be compared.
+static int
+matchKeyOnly(const Tag *tag1,
+             const Tag *tag2)
+{
+  if (tag1 == tag2)
+    return 0;
+  if (tag1->matchKeyOk() && tag2->matchKeyOk()) {
+    const uint64_t key1 = tag1->matchKey();
+    const uint64_t key2 = tag2->matchKey();
+    if (key1 < key2)
+      return -1;
+    if (key1 > key2)
+      return 1;
+  }
+  return 2;
+}
+
 bool
 TagMatchLess::operator()(const Tag *tag1,
                          const Tag *tag2) const
 {
+  const int key = matchKeyOnly(tag1, tag2);
+  if (key != 2)
+    return key < 0;
   return Tag::matchCmp(tag1, tag2, match_crpr_clk_pin_, sta_) < 0;
 }
 
@@ -419,7 +441,7 @@ Tag::match(const Tag *tag1,
            const Tag *tag2,
            const StaState *sta)
 {
-  return Tag::matchCmp(tag1, tag2, true, sta) == 0;
+  return Tag::match(tag1, tag2, true, sta);
 }
 
 bool
@@ -428,6 +450,9 @@ Tag::match(const Tag *tag1,
            bool match_crpr_clk_pin,
            const StaState *sta)
 {
+  const int key = matchKeyOnly(tag1, tag2);
+  if (key != 2)
+    return key == 0;
   return Tag::matchCmp(tag1, tag2, match_crpr_clk_pin, sta) == 0;
 }
 

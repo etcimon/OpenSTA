@@ -311,6 +311,8 @@ public:
 
 private:
   void clear();
+  // Pack order-2 rows into values2_. Ragged rows leave the nested table.
+  void packOrder2();
   float findValueOrder2(float axis_value1, float axis_value2) const;
   float findValueOrder3(float axis_value1, float axis_value2, float axis_value3) const;
   std::string reportValueOrder0(std::string_view result_name,
@@ -346,6 +348,9 @@ private:
   float value_;              // order 0 only
   FloatSeq values1_;         // order 1 only
   FloatTable values_table_;  // order 2 and 3
+  // Order 2, row-major. Stride 0 keeps the nested table (ragged rows).
+  FloatSeq values2_;
+  size_t values2_stride_{0};
   TableAxisPtr axis1_;
   TableAxisPtr axis2_;
   TableAxisPtr axis3_;
